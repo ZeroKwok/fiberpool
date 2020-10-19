@@ -15,8 +15,9 @@ bool boost::this_fiber::interrupted()
         fiber_pool::fiber_properties>().interrupted();
 }
 
-// pool::runnable
+// pool::abstract_runnable
 boost::atomic_size_t fiber_pool::pool::abstract_runnable::count_{ 0 };
+
 
 namespace fiber_pool {
 
@@ -62,18 +63,20 @@ pool::pool(size_t threads /*= -1*/)
 
     // 启动工作线程
     for (size_t i = 0; i < threads; ++i)
-        m_threads.emplace_back([this]()
     {
-        // 初始化调度算法
-        boost::fibers::use_scheduling_algorithm<
-            shared_work_with_properties>(true);
+        m_threads.emplace_back([this]()
+        {
+            // 初始化调度算法
+            boost::fibers::use_scheduling_algorithm<
+                shared_work_with_properties>(true);
 
-        // 挂起主线程
-        boost::unique_lock<boost::mutex> lock(m_mutex_stop);
-        m_condition_stop.wait(lock, [this]() {
-            return m_pool_state.load() > running;
+            // 挂起主线程
+            boost::unique_lock<boost::mutex> lock(m_mutex_stop);
+            m_condition_stop.wait(lock, [this]() {
+                return m_pool_state.load() > running;
+            });
         });
-    });
+    }
 
     // 表示池的状态
     m_pool_state.store(running);
@@ -109,11 +112,9 @@ fiber pool::dispatch(pool::runnable_ptr&& runnable)
             shared_work_with_properties>(true);
     }
 
-    //std::bind(&abstract_runnable::operator(), std::move(runnable));
-    //boost::function<void()> f1 = boost::bind(&abstract_runnable::operator(), std::move(runnable));
-
     // 启动
-    return fiber{ boost::fibers::fiber(std::bind(&abstract_runnable::operator(), std::move(runnable))) };
+    return fiber{ boost::fibers::fiber(
+        std::bind(&abstract_runnable::operator(), std::move(runnable))) };
 }
 
 size_t fiber_pool::pool::fiber_count() const
@@ -133,18 +134,16 @@ void pool::shutdown()
     for (auto& thread : m_threads)
     {
         if (thread.joinable())
-        {
             thread.join();
-        }
     }
 
     m_pool_state.store(stoped);
 }
-
-} // fiber_pool
 
 fiber_pool::pool& get_fiber_pool(size_t threads/* = -1*/)
 {
     static fiber_pool::pool _pool{ threads };
     return _pool;
 }
+
+} // fiber_pool
