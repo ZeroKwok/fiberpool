@@ -22,9 +22,10 @@ add_library(${PROJECT_NAME}
             src/fiber_pool.cpp
             src/shared_work.cpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-    Boost::fiber 
-    Boost::thread)
+# 某些环境下不会自动连接
+#target_link_libraries(${PROJECT_NAME} PRIVATE 
+#    Boost::fiber 
+#    Boost::thread)
 
 if (ENABLE_BUILD_EXAMPLE)
     add_subdirectory(example)

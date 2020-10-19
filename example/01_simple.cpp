@@ -7,7 +7,7 @@ int main()
 
     for (int i = 0; i < 10000; ++i)
     {
-        get_fiber_pool().post([](const std::string& name)
+        get_fiber_pool().post([&](const std::string& name)
         {
             boost::unique_lock<boost::mutex> lock(g_mutex);
 
