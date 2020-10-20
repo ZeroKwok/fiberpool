@@ -11,6 +11,9 @@
 
 bool boost::this_fiber::interrupted()
 {
+    if (get_fiber_pool().state() > fiber_pool::pool::running)
+        return true;
+
     return boost::this_fiber::properties<
         fiber_pool::fiber_properties>().interrupted();
 }
