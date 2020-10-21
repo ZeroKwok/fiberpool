@@ -16,10 +16,10 @@
 #include <boost/fiber/future.hpp>
 #include <boost/fiber/condition_variable.hpp>
 
-// À©Õ¹boost::this_fiber
+// æ‰©å±•boost::this_fiber
 namespace boost {
     namespace this_fiber {
-        /// ·µ»Øµ±Ç°ÏË³ÌÊÇ·ñ±»ÖĞ¶Ï
+        /// è¿”å›å½“å‰çº¤ç¨‹æ˜¯å¦è¢«ä¸­æ–­
         FIBER_POOL_DECL bool interrupted();
     }
 }
@@ -27,8 +27,8 @@ namespace boost {
 namespace fiber_pool {
 
 /*!
- *  \brief  À©Õ¹boost::fibers::fiber, Ê¹Ö®¿ÉÒÔ°²È«µÄÖÕÖ¹Î´¾öµÄÏË³Ì, 
- *      µ«Í¬Ê±Ê¹Ö®É¥Ê§ÔËĞĞÏË³ÌµÄÄÜÁ¦.
+ *  \brief  æ‰©å±•boost::fibers::fiber, ä½¿ä¹‹å¯ä»¥å®‰å…¨çš„ç»ˆæ­¢æœªå†³çš„çº¤ç¨‹, 
+ *      ä½†åŒæ—¶ä½¿ä¹‹ä¸§å¤±è¿è¡Œçº¤ç¨‹çš„èƒ½åŠ›.
  */
 class FIBER_POOL_DECL fiber
 {
@@ -54,7 +54,7 @@ protected:
 
 
 /*!
- *  \brief  ÏË³Ì³Ø¶ÔÏó, ÄÚ²¿Î¬»¤¶à¸ö¹¤×÷Ïß³ÌÊ¹Ö®¹²ÏíÖ´ĞĞËùÓĞÍ¶µİµ½³ØÖĞµÄÏË³Ì.
+ *  \brief  çº¤ç¨‹æ± å¯¹è±¡, å†…éƒ¨ç»´æŠ¤å¤šä¸ªå·¥ä½œçº¿ç¨‹ä½¿ä¹‹å…±äº«æ‰§è¡Œæ‰€æœ‰æŠ•é€’åˆ°æ± ä¸­çš„çº¤ç¨‹.
  *  
  */
 class FIBER_POOL_DECL pool
@@ -64,10 +64,10 @@ class FIBER_POOL_DECL pool
     boost::fibers::condition_variable_any        m_condition_stop;
     std::vector<boost::thread>                   m_threads;
 
-    /// ¿ÉÔËĞĞ¶ÔÏóµÄ³éÏó
+    /// å¯è¿è¡Œå¯¹è±¡çš„æŠ½è±¡
     struct abstract_runnable
     {
-        static boost::atomic_size_t count_; ///< ¶ÔÏó¼ÆÊıÆ÷
+        static boost::atomic_size_t count_; ///< å¯¹è±¡è®¡æ•°å™¨
 
         virtual ~abstract_runnable() {}
         virtual void operator()() = 0;
@@ -75,7 +75,7 @@ class FIBER_POOL_DECL pool
 
     typedef std::unique_ptr<abstract_runnable> runnable_ptr;
 
-    /// ¿ÉÔËĞĞ¶ÔÏóµÄ·â×°, ÁªºÏ²ÎÊıÒ»Æğ¹¹³É±Õ°ü, ¿ÉÒÔ½«ÆäÊÓÎªÒ»¸ö¼òÒ×µÄstd::function¶ÔÏó.
+    /// å¯è¿è¡Œå¯¹è±¡çš„å°è£…, è”åˆå‚æ•°ä¸€èµ·æ„æˆé—­åŒ…, å¯ä»¥å°†å…¶è§†ä¸ºä¸€ä¸ªç®€æ˜“çš„std::functionå¯¹è±¡.
     template< typename Fn, typename ... Arg >
     class closure : public abstract_runnable
     {
@@ -127,14 +127,14 @@ class FIBER_POOL_DECL pool
     };
 
     /*!
-     *  \brief  ÊµÀı»¯³Ø¶ÔÏó
+     *  \brief  å®ä¾‹åŒ–æ± å¯¹è±¡
      *
-     *  \param  threads ³ØÖĞ¹ÜÀíµÄÏß³ÌÊı, -1ÔòÊ¹ÓÃÂß¼­CPU*2;
+     *  \param  threads æ± ä¸­ç®¡ç†çš„çº¿ç¨‹æ•°, -1åˆ™ä½¿ç”¨é€»è¾‘CPU*2;
      *  \see    get_fiber_pool().
      */
     pool(size_t threads = -1);
 
-    /// ·Ç³ÉÔ±º¯Êı, ÓÃÓÚÊµÀı»¯pool¶ÔÏó
+    /// éæˆå‘˜å‡½æ•°, ç”¨äºå®ä¾‹åŒ–poolå¯¹è±¡
     friend pool& get_fiber_pool(size_t threads);
 
 public:
@@ -142,19 +142,19 @@ public:
 
     enum state_t
     {
-        running,    ///< ÔËĞĞ½×¶Î, ´ËÊ±¿ÉÒÔÍ¶µİÈÎÎñµ½³ØÖĞ
-        cleaning,   ///< ÇåÀí½×¶Î, ´ËÊ±³ØÕıÔÚÇåÀíËùÓĞÎ´¾öµÄÈÎÎñ, ËùÓĞpost½«Å×³öÒì³£. 
+        running,    ///< è¿è¡Œé˜¶æ®µ, æ­¤æ—¶å¯ä»¥æŠ•é€’ä»»åŠ¡åˆ°æ± ä¸­
+        cleaning,   ///< æ¸…ç†é˜¶æ®µ, æ­¤æ—¶æ± æ­£åœ¨æ¸…ç†æ‰€æœ‰æœªå†³çš„ä»»åŠ¡, æ‰€æœ‰postå°†æŠ›å‡ºå¼‚å¸¸. 
         stoped,
     };
 
-    /// ·µ»Ø³ØµÄ×´Ì¬
+    /// è¿”å›æ± çš„çŠ¶æ€
     state_t state() const;
 
     /*!
-     *  \brief  Í¶µİÒ»¸ö¿Éµ÷ÓÃ¶ÔÏó×÷ÎªÏË³Ìµ½ÏË³Ì³ØÖĞÖ´ĞĞ.
+     *  \brief  æŠ•é€’ä¸€ä¸ªå¯è°ƒç”¨å¯¹è±¡ä½œä¸ºçº¤ç¨‹åˆ°çº¤ç¨‹æ± ä¸­æ‰§è¡Œ.
      *  
-     *  \note   ¿Éµ÷ÓÃ¶ÔÏóÅ×³öµÄÈÎºÎÒì³£»ò·µ»ØÖµ¶¼½«±»¶ªÆú, ÈôÒª²¶»ñÒì³£ĞÅÏ¢»òÕß·µ»ØÖµ¿ÉÒÔÍ¨¹ı
-     *      boost::fibers::packaged_task°ü×°ºóÔÙĞĞÍ¶µİ, ²Î¼ûpool::async().
+     *  \note   å¯è°ƒç”¨å¯¹è±¡æŠ›å‡ºçš„ä»»ä½•å¼‚å¸¸æˆ–è¿”å›å€¼éƒ½å°†è¢«ä¸¢å¼ƒ, è‹¥è¦æ•è·å¼‚å¸¸ä¿¡æ¯æˆ–è€…è¿”å›å€¼å¯ä»¥é€šè¿‡
+     *      boost::fibers::packaged_taskåŒ…è£…åå†è¡ŒæŠ•é€’, å‚è§pool::async().
      */
     template<typename Fn, typename ... Arg>
     fiber post(Fn&& fn, Arg&& ... arg)
@@ -168,10 +168,10 @@ public:
     }
 
     /*!
-    *   \brief  ÀàËÆÓÚboost::fibers::async(), Í¶µİÈÎÎñµ½³ØÖĞÖ´ĞĞ, ·µ»Øfuture. 
+    *   \brief  ç±»ä¼¼äºboost::fibers::async(), æŠ•é€’ä»»åŠ¡åˆ°æ± ä¸­æ‰§è¡Œ, è¿”å›future. 
     * 
-    *   \note   ¸Ã·½·¨ÊÊÓÃÓÚ¶ÔÓÚÖ»¹ØĞÄ½á¹û¶ø²»¹ØĞÄÖ´ĞĞÁ÷³ÌµÄÈÎÎñ, ÈôĞèÒª¹ØĞÄÖ´ĞĞÁ÷³Ì, 
-    *       ±ÈÈçÔÚÄ³¸öÊ±ºòÖĞ¶ÏÈÎÎñÔò½¨ÒéÍ¨¹ıpost();
+    *   \note   è¯¥æ–¹æ³•é€‚ç”¨äºå¯¹äºåªå…³å¿ƒç»“æœè€Œä¸å…³å¿ƒæ‰§è¡Œæµç¨‹çš„ä»»åŠ¡, è‹¥éœ€è¦å…³å¿ƒæ‰§è¡Œæµç¨‹, 
+    *       æ¯”å¦‚åœ¨æŸä¸ªæ—¶å€™ä¸­æ–­ä»»åŠ¡åˆ™å»ºè®®é€šè¿‡post();
     */
     template< typename Fn, typename ... Args >
     boost::fibers::future<
@@ -194,13 +194,13 @@ public:
         return f;
     }
 
-    /// ·µ»Ø³ØÖĞËùÓĞÎ´¾öµÄÏË³ÌÊı.
+    /// è¿”å›æ± ä¸­æ‰€æœ‰æœªå†³çš„çº¤ç¨‹æ•°.
     size_t fiber_count() const;
 
     /*!
-     *   µÈ´ıËùÓĞÎ´¾öµÄÈÎÎñÖ´ĞĞÍê±Ïºó¹Ø±ÕÏË³Ì³Ø.
-     *   ÔÚµÈ´ı¹ı³ÌÖĞ³ØµÄ×´Ì¬½«ÉèÖÃÎªcleaning, ¼´²»ÔÊĞíÍ¨¹ıpost()Í¶µİÈÎÎñ;
-     *   º¯Êı·µ»Øºó³ØµÄ×´Ì¬½«±»ÉèÖÃÎªstoped.
+     *   ç­‰å¾…æ‰€æœ‰æœªå†³çš„ä»»åŠ¡æ‰§è¡Œå®Œæ¯•åå…³é—­çº¤ç¨‹æ± .
+     *   åœ¨ç­‰å¾…è¿‡ç¨‹ä¸­æ± çš„çŠ¶æ€å°†è®¾ç½®ä¸ºcleaning, å³ä¸å…è®¸é€šè¿‡post()æŠ•é€’ä»»åŠ¡;
+     *   å‡½æ•°è¿”å›åæ± çš„çŠ¶æ€å°†è¢«è®¾ç½®ä¸ºstoped.
      */
     void shutdown();
 
@@ -209,15 +209,15 @@ protected:
 };
 
 /*!
- *  \brief  ·µ»Øfiber_pool::poolµÄÎ¨Ò»ÊµÀı.
- *  \param  threads ²Î¼ûpool();
+ *  \brief  è¿”å›fiber_pool::poolçš„å”¯ä¸€å®ä¾‹.
+ *  \param  threads å‚è§pool();
  */
 FIBER_POOL_DECL fiber_pool::pool& get_fiber_pool(size_t threads = -1);
 
 } // fiber_pool
 
 
-/// ÔÚÃû³Æ¿Õ¼äÍâ·ÃÎÊ
+/// åœ¨åç§°ç©ºé—´å¤–è®¿é—®
 using fiber_pool::get_fiber_pool;
 
 #endif // fiber_pool_h__

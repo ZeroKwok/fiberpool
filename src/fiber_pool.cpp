@@ -60,20 +60,20 @@ void fiber::interrupt()
 
 pool::pool(size_t threads /*= -1*/)
 {
-    // Ä¬ÈÏÊ¹ÓÃÂß¼­´¦ÀíÆ÷µÄ2±¶
+    // é»˜è®¤ä½¿ç”¨é€»è¾‘å¤„ç†å™¨çš„2å€
     if (threads == -1)
         threads = std::max(boost::thread::hardware_concurrency(), 2u) * 2u;
 
-    // Æô¶¯¹¤×÷Ïß³Ì
+    // å¯åŠ¨å·¥ä½œçº¿ç¨‹
     for (size_t i = 0; i < threads; ++i)
     {
         m_threads.emplace_back([this]()
         {
-            // ³õÊ¼»¯µ÷¶ÈËã·¨
+            // åˆå§‹åŒ–è°ƒåº¦ç®—æ³•
             boost::fibers::use_scheduling_algorithm<
                 shared_work_with_properties>(true);
 
-            // ¹ÒÆğÖ÷Ïß³Ì
+            // æŒ‚èµ·ä¸»çº¿ç¨‹
             boost::unique_lock<boost::mutex> lock(m_mutex_stop);
             m_condition_stop.wait(lock, [this]() {
                 return m_pool_state.load() > running;
@@ -81,7 +81,7 @@ pool::pool(size_t threads /*= -1*/)
         });
     }
 
-    // ±íÊ¾³ØµÄ×´Ì¬
+    // è¡¨ç¤ºæ± çš„çŠ¶æ€
     m_pool_state.store(running);
 }
 
@@ -104,7 +104,7 @@ pool::state_t pool::state() const
 
 fiber pool::dispatch(pool::runnable_ptr&& runnable)
 {
-    // È·±£µ±Ç°Ïß³ÌÒÑ¾­³õÊ¼»¯µ÷¶ÈËã·¨
+    // ç¡®ä¿å½“å‰çº¿ç¨‹å·²ç»åˆå§‹åŒ–è°ƒåº¦ç®—æ³•
     thread_local static boost::atomic_bool has_not_init_alorithm{ true };
 
     if (has_not_init_alorithm.load())
@@ -115,7 +115,7 @@ fiber pool::dispatch(pool::runnable_ptr&& runnable)
             shared_work_with_properties>(true);
     }
 
-    // Æô¶¯
+    // å¯åŠ¨
     return fiber{ boost::fibers::fiber(
         std::bind(&abstract_runnable::operator(), std::move(runnable))) };
 }
@@ -127,7 +127,7 @@ size_t fiber_pool::pool::fiber_count() const
 
 void pool::shutdown()
 {
-    // »½ĞÑÍË³ö¹¤×÷Ïß³Ì
+    // å”¤é†’é€€å‡ºå·¥ä½œçº¿ç¨‹
     {
         boost::unique_lock<boost::mutex> lock(m_mutex_stop);
         m_pool_state.store(cleaning);

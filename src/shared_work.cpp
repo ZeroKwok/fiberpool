@@ -122,7 +122,7 @@ namespace fiber_pool {
         }
     }
 
-    // 静态成员对象对象实例化
+    // 闈欐�佹垚鍛樺璞″璞″疄渚嬪寲
     shared_work_with_properties::rqueue_type shared_work_with_properties::rqueue_{};
     std::mutex shared_work_with_properties::rqueue_mtx_{};
 

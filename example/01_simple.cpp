@@ -6,7 +6,7 @@ int main()
 {
     boost::mutex g_mutex;
 
-    // Í¶µİ10000¸öÈÎÎñ²¢·¢Ö´ĞĞ
+    // æŠ•é€’10000ä¸ªä»»åŠ¡å¹¶å‘æ‰§è¡Œ
     for (int i = 0; i < 10000; ++i)
     {
         get_fiber_pool().post([&](const std::string& name)
@@ -24,30 +24,30 @@ int main()
         }, "lambda-" + std::to_string(i));
     }
 
-    // Í¶µİÒ»¸öÑ­»·ÈÎÎñ
+    // æŠ•é€’ä¸€ä¸ªå¾ªç¯ä»»åŠ¡
     get_fiber_pool().post([]
     {
         while (true)
         {
-            // Ö´ĞĞÄ³Ğ©²Ù×÷»òÕß¼ì²é
+            // æ‰§è¡ŒæŸäº›æ“ä½œæˆ–è€…æ£€æŸ¥
             ;
 
-            // ÖĞ¶ÏÊ±Ìø³öÑ­»·
+            // ä¸­æ–­æ—¶è·³å‡ºå¾ªç¯
             if (boost::this_fiber::interrupted())
                 break;
 
-            // Ã¿2ÃëÖ´ĞĞÒ»´Î
+            // æ¯2ç§’æ‰§è¡Œä¸€æ¬¡
             boost::this_fiber::sleep_for(std::chrono::seconds(2));
         }
 
     });
 
 
-    // Í¶µİÒ»¸öÒì²½ÈÎÎñ, ²¢»ñÈ¡Æä·µ»ØÖµ
+    // æŠ•é€’ä¸€ä¸ªå¼‚æ­¥ä»»åŠ¡, å¹¶è·å–å…¶è¿”å›å€¼
     auto future = get_fiber_pool().async([]()->int { return 6; });
     assert(future.get() == 6);
 
-    // ÖÕÖ¹²¢»ØÊÕ×ÊÔ´
+    // ç»ˆæ­¢å¹¶å›æ”¶èµ„æº
     get_fiber_pool().shutdown();
 
     return 0;

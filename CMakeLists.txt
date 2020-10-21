@@ -8,11 +8,11 @@ option(ENABLE_BUILD_EXAMPLE "Build the example" ON)
 
 find_package(Boost REQUIRED fiber thread)
 
-# Êä³ö²éÕÒ½á¹û
+# è¾“å‡ºæŸ¥æ‰¾ç»“æœ
 message(Boost_INCLUDE_DIRS " ${Boost_INCLUDE_DIRS}")
 message(Boost_LIBRARY_DIRS " ${Boost_LIBRARY_DIRS}")
 
-# ÉèÖÃBoost°üº¬Ä¿Â¼
+# è®¾ç½®BooståŒ…å«ç›®å½•
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
@@ -22,7 +22,7 @@ add_library(${PROJECT_NAME}
             src/fiber_pool.cpp
             src/shared_work.cpp)
 
-# Ä³Ğ©»·¾³ÏÂ²»»á×Ô¶¯Á¬½Ó
+# æŸäº›ç¯å¢ƒä¸‹ä¸ä¼šè‡ªåŠ¨è¿æ¥
 #target_link_libraries(${PROJECT_NAME} PRIVATE 
 #    Boost::fiber 
 #    Boost::thread)
