@@ -23,9 +23,11 @@ add_library(${PROJECT_NAME}
             src/shared_work.cpp)
 
 # 某些环境下不会自动连接
-#target_link_libraries(${PROJECT_NAME} PRIVATE 
-#    Boost::fiber 
-#    Boost::thread)
+if(UNIX)
+    target_link_libraries(${PROJECT_NAME} PRIVATE 
+        Boost::fiber 
+        Boost::thread)
+endif()
 
 if (ENABLE_BUILD_EXAMPLE)
     add_subdirectory(example)

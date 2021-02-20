@@ -1,10 +1,10 @@
 #include "shared_work.hpp"
 
 /*!
- * \file   shared_work.cpp 
+ *  @file   shared_work.cpp 
  *
- * \author zero kwok
- * \date   2020-10
+ *  @author zero kwok
+ *  @date   2020-10
  *
  */
 

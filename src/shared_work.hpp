@@ -2,10 +2,10 @@
 #define shared_work_h__
 
 /*!
- * \file   shared_work.hpp
+ *  @file   shared_work.hpp
  *
- * \author zero kwok
- * \date   2020-10
+ *  @author zero kwok
+ *  @date   2020-10
  *
  */
 

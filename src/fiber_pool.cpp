@@ -2,10 +2,10 @@
 #include "shared_work.hpp"
 
 /*!
- * \file   fiber_pool.cpp
+ *  @file   fiber_pool.cpp
  *
- * \author zero kwok
- * \date   2020-10
+ *  @author zero kwok
+ *  @date   2020-10
  *
  */
 
