@@ -14,6 +14,7 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <boost/any.hpp>
 #include <boost/config.hpp>
 #include <boost/atomic.hpp>
 #include <boost/fiber/algo/algorithm.hpp>
@@ -26,6 +27,8 @@ namespace fiber_pool {
 class fiber_properties : public boost::fibers::fiber_properties
 {
     int priority_;
+    boost::atomic_bool binding_{ false };
+    boost::atomic_bool finished_{ false };
     boost::atomic_bool interrupted_{ false };
 public:
     fiber_properties(boost::fibers::context* ctx) 
@@ -45,6 +48,22 @@ public:
     void interrupt() {
         interrupted_.store(true);
     }
+
+    bool finished() const {
+        return finished_.load();
+    }
+
+    void finish() {
+        finished_.store(true);
+    }
+
+    void bind() {
+        binding_.store(true);
+    }
+
+    bool binding() const {
+        return binding_.load();
+    }
 };
 
 class shared_work_with_properties :
@@ -53,10 +72,11 @@ class shared_work_with_properties :
     typedef std::deque<boost::fibers::context*> rqueue_type;
     typedef boost::fibers::scheduler::ready_queue_type lqueue_type;
 
-    static rqueue_type     	rqueue_;
-    static std::mutex   	rqueue_mtx_;
+    static rqueue_type      rqueue_;    // 共享队列
+    static std::mutex       rqueue_mtx_;
 
-    lqueue_type            	lqueue_{};
+    lqueue_type             pqueue_{};  // 优先队列, 绑定线程的纤程
+    lqueue_type             lqueue_{};  // 本地队列, main context, dispatcher context
     std::mutex              mtx_{};
     std::condition_variable cnd_{};
     bool                    flag_{ false };

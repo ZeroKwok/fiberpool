@@ -11,25 +11,47 @@
 
 bool boost::this_fiber::interrupted()
 {
-    if (get_fiber_pool().state() > fiber_pool::pool::running)
+    if (get_fiber_pool().state() > fiber_pool::pool::waiting)
         return true;
 
     return boost::this_fiber::properties<
         fiber_pool::fiber_properties>().interrupted();
 }
 
+FIBER_POOL_DECL void boost::this_fiber::bind_thread()
+{
+    boost::this_fiber::properties<
+        fiber_pool::fiber_properties>().bind();
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void fiber_pool::pool::abstract_runnable::finish()
+{
+    boost::this_fiber::properties<
+        fiber_pool::fiber_properties>().finish();
+}
+
 // pool::abstract_runnable
 boost::atomic_size_t fiber_pool::pool::abstract_runnable::count_{ 0 };
 
+//////////////////////////////////////////////////////////////////////////
 
 namespace fiber_pool {
 
-fiber::fiber(base_type&& fiber)
-    : m_base(std::move(fiber))
+fiber::fiber()
 {}
 
-fiber::fiber(fiber&& other)
-    : m_base(std::move(other.m_base))
+fiber::fiber(fiber& right)
+    : m_base(std::move(right.m_base))
+{}
+
+fiber::fiber(fiber && right)
+    : m_base(std::move(right.m_base))
+{}
+
+fiber::fiber(base_type&& fiber)
+    : m_base(std::move(fiber))
 {}
 
 fiber::~fiber()
@@ -38,9 +60,27 @@ fiber::~fiber()
         m_base.detach();
 }
 
+fiber& fiber::operator=(fiber& right)
+{
+    m_base = std::move(right.m_base);
+    return *this;
+}
+
+fiber& fiber::operator=(fiber&& right)
+{
+    m_base = std::move(right.m_base);
+    return *this;
+}
+
 fiber::id fiber::get_id() const noexcept
 {
     return m_base.get_id();
+}
+
+bool fiber::finshed() const noexcept
+{
+    return const_cast<fiber*>(this)->
+        m_base.properties<fiber_properties>().finished();
 }
 
 bool fiber::joinable() const noexcept
@@ -57,6 +97,8 @@ void fiber::interrupt()
 {
     m_base.properties<fiber_properties>().interrupt();
 }
+
+//////////////////////////////////////////////////////////////////////////
 
 pool::pool(size_t threads /*= -1*/)
 {
@@ -97,7 +139,7 @@ pool::~pool()
     }
 }
 
-pool::state_t pool::state() const
+pool::state_t pool::state() const noexcept
 {
     return static_cast<state_t>(m_pool_state.load());
 }
@@ -120,24 +162,34 @@ fiber pool::dispatch(pool::runnable_ptr&& runnable)
         std::bind(&abstract_runnable::operator(), std::move(runnable))) };
 }
 
-size_t fiber_pool::pool::fiber_count() const
+size_t fiber_pool::pool::fiber_count() const noexcept
 {
     return abstract_runnable::count_.load();
 }
 
-void pool::shutdown()
+void pool::shutdown(bool wait/* = false*/) noexcept
 {
     // 唤醒退出工作线程
     {
         boost::unique_lock<boost::mutex> lock(m_mutex_stop);
-        m_pool_state.store(cleaning);
+        m_pool_state.store(wait ? waiting : cleaning);
         m_condition_stop.notify_all();
     }
 
     for (auto& thread : m_threads)
     {
         if (thread.joinable())
-            thread.join();
+        {
+            while (!thread.try_join_for(boost::chrono::milliseconds(100)))
+            {
+                if (fiber_count() == 0)
+                {
+                    boost::unique_lock<boost::mutex> lock(m_mutex_stop);
+                    m_pool_state.store(cleaning);
+                    m_condition_stop.notify_all();
+                }
+            }
+        }
     }
 
     m_pool_state.store(stoped);

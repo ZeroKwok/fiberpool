@@ -25,25 +25,52 @@
 #   endif
 #endif
 
+#if _MSC_VER
+#   ifndef _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING
+#       define _SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING 1
+#   endif
+#endif
+
+#ifndef BOOST_CONTEXT_DYN_LINK
+#   define BOOST_CONTEXT_DYN_LINK 1
+#endif
+
+#include <boost/any.hpp>
 #include <boost/atomic.hpp>
 #include <boost/thread.hpp>
 #include <boost/fiber/fiber.hpp>
 #include <boost/fiber/future.hpp>
 #include <boost/fiber/condition_variable.hpp>
 
-// 扩展boost::this_fiber
+/*!
+ *  扩展boost::this_fiber
+ */
 namespace boost {
     namespace this_fiber {
-        //! 返回当前纤程是否被中断
+        /*!
+         *  返回当前纤程是否被中断
+         */
         FIBER_POOL_DECL bool interrupted();
+
+        /*!
+         *  绑定当前纤程到当前线程并提高其优先级
+         *  绑定后纤程不会在线程间切换
+         */
+        FIBER_POOL_DECL void bind_thread();
+
+        /*!
+         *  返回当前纤程绑定的用户数据
+         */
+        FIBER_POOL_DECL boost::any& data();
     }
 }
 
 namespace fiber_pool {
 
 /*!
- *  扩展boost::fibers::fiber, 使之可以安全的终止未决的纤程, 
- *  但同时使之丧失运行纤程的能力.
+ *  @brief 扩展boost::fibers::fiber
+ *         使之可以优雅的终止未决的任务, 但同时使之丧失运行纤程的能力.
+ *  @note  另一个区别是fiber对象析构时会自动与未决的纤程分离.
  */
 class FIBER_POOL_DECL fiber
 {
@@ -51,14 +78,17 @@ public:
     typedef boost::fibers::fiber base_type;
     typedef base_type::id id;
 
+    fiber();
+    fiber(fiber& right);
+    fiber(fiber&& right);
     fiber(base_type&& fiber);
-    fiber(fiber&& other);
     ~fiber();
 
-    fiber() = delete;
-    fiber & operator=(fiber const&) = delete;
+    fiber & operator=(fiber& right);
+    fiber & operator=(fiber&& right);
 
     id   get_id() const noexcept;
+    bool finshed() const noexcept;
     bool joinable() const noexcept;
     void join();
     void interrupt();
@@ -68,7 +98,8 @@ protected:
 };
 
 /*!
- *  纤程池对象, 内部维护多个工作线程使之共享执行所有投递到池中的纤程.
+ *  纤程池
+ *  内部维护多个工作线程使之共享执行所有投递到池中的任务
  */
 class FIBER_POOL_DECL pool
 {
@@ -77,18 +108,23 @@ class FIBER_POOL_DECL pool
     boost::fibers::condition_variable_any m_condition_stop;
     std::vector<boost::thread>            m_threads;
 
-    //! 可运行对象的抽象
+    /*!
+     *  可运行对象的抽象
+     */
     struct abstract_runnable
     {
         static boost::atomic_size_t count_; //!< 对象计数器
 
         virtual ~abstract_runnable() {}
         virtual void operator()() = 0;
+                void finish();
     };
 
     typedef std::unique_ptr<abstract_runnable> runnable_ptr;
 
-    //! 可运行对象的封装, 联合参数一起构成闭包, 可以将其视为一个简易的std::function对象.
+    /*!
+     *  可运行对象的封装, 联合参数一起构成闭包, 可以将其视为一个简易的std::function对象.
+     */
     template< typename Fn, typename ... Arg >
     class closure : public abstract_runnable
     {
@@ -136,6 +172,8 @@ class FIBER_POOL_DECL pool
 #endif
                 }
             }
+
+            finish();
         }
     };
 
@@ -147,7 +185,9 @@ class FIBER_POOL_DECL pool
      */
     pool(size_t threads = -1);
 
-    //! 非成员函数, 用于实例化pool对象
+    /*!
+     *  非成员函数, 用于实例化pool对象
+     */
     friend pool& get_fiber_pool(size_t threads);
 
 public:
@@ -155,19 +195,23 @@ public:
 
     enum state_t
     {
-        running,    //!< 运行阶段, 此时可以投递任务到池中
-        cleaning,   //!< 清理阶段, 此时池正在清理所有未决的任务, 所有post将抛出异常. 
-        stoped,
+        running,    //!< 运行阶段, 此时可以投递任务到池中.
+        waiting,    //!< 等待阶段, 此时池正在等待所有未决的任务, 所有dispatch将抛出异常. 
+        cleaning,   //!< 清理阶段, 此时池正在终止所有未决的任务, 所有dispatch将抛出异常.
+        stoped,     //!< 停止阶段, 此时池不执行任何操作, 并且不能再次运行.
     };
 
-    //! 返回池的状态
-    state_t state() const;
+    /*!
+     *  返回池的状态
+     */
+    state_t state() const noexcept;
 
     /*!
-     *  @brief 投递一个可调用对象作为纤程到纤程池中执行.
-     *  
+     *  @brief 投递一个可调用对象作为任务到纤程池中执行.
+     *
      *  @note  可调用对象抛出的任何异常或返回值都将被丢弃, 若要捕获异常信息或者返回值可以通过
-     *      boost::fibers::packaged_task包装后再行投递, 参见pool::async().
+     *         std::packaged_task包装后再行投递.
+     *  @see   pool::async().
      */
     template<typename Fn, typename ... Arg>
     fiber post(Fn&& fn, Arg&& ... arg)
@@ -181,29 +225,58 @@ public:
     }
 
     /*!
-     *  @brief 类似于boost::fibers::async(), 投递任务到池中执行, 返回future.
+     *  @brief 类似于std::async(), 投递可调用对象到池中执行并返回future.
      *
      *  @note  该方法适用于对于只关心结果而不关心执行流程的任务, 若需要关心执行流程,
-     *       比如在某个时候中断任务则建议通过post();
+     *         比如在某个时候中断任务则建议通过post();
+     *  @see   dispatch().
      */
     template< typename Fn, typename ... Args >
     boost::fibers::future<
         typename std::result_of<
         typename std::decay< Fn >::type(typename std::decay< Args >::type ...)
         >::type
-    > async(Fn&& fn, Args ... args);
+    > async(Fn&& fn, Args ... args)
+    {
+        typedef typename std::result_of<
+            typename std::decay< Fn >::type(typename std::decay< Args >::type ...)
+        >::type     result_type;
 
-    //! 返回池中所有未决的纤程数.
-    size_t fiber_count() const;
+        boost::fibers::packaged_task< result_type(
+            typename std::decay< Args >::type ...) > pt{
+            std::forward< Fn >(fn) };
+        boost::fibers::future< result_type > f{ pt.get_future() };
+
+        post(std::move(pt), std::forward< Args >(args) ...);
+
+        return f;
+    }
 
     /*!
-     *  等待所有未决的任务执行完毕后关闭纤程池.
-     *  在等待过程中池的状态将设置为cleaning, 即不允许通过post()投递任务;
-     *  函数返回后池的状态将被设置为stoped.
+     *  返回池中所有未决的纤程数.
      */
-    void shutdown();
+    size_t fiber_count() const noexcept;
+
+    /*!
+     *  @brief 停止分派任务并关闭纤程池
+     *
+     *  @param wait true 等待所有未决的任务执行完毕后关闭纤程池.
+     *              false 不等待, 中断所有正在执行的任务, 还没有执行的任务将直接丢弃.
+     *
+     *  @note  在等待过程中池的状态将设置为waiting, 而另一种状态是cleaning, 这两种状态均不允许通过dispatch()分派任务,
+     *         将抛出std::runtime_error()异常, 返回后池的状态将被设置为stoped.
+     */
+    void shutdown(bool wait = true) noexcept;
 
 protected:
+
+    /*!
+     *  @brief 分派可调用对象到纤程池中
+     * 
+     *  @param runnable 表示一个可执行对象, 类似一个闭包.
+     *  @return 返回指向该未决任务的句柄
+     *  @note 如果池的状态state() != running, 将抛出std::runtime_error()异常.
+     */
     fiber dispatch(pool::runnable_ptr&& runnable);
 };
 
@@ -213,29 +286,11 @@ protected:
  */
 FIBER_POOL_DECL fiber_pool::pool& get_fiber_pool(size_t threads = -1);
 
-template< typename Fn, typename ... Args >
-boost::fibers::future<
-    typename std::result_of<
-    typename std::decay< Fn >::type(typename std::decay< Args >::type ...)
-    >::type
-  > fiber_pool::pool::async(Fn&& fn, Args ... args)
-{
-    typedef typename std::result_of<
-        typename std::decay< Fn >::type(typename std::decay< Args >::type ...)
-    >::type     result_type;
-
-    boost::fibers::packaged_task< result_type(typename std::decay< Args >::type ...) > pt{
-        std::forward< Fn >(fn) };
-    boost::fibers::future< result_type > f{ pt.get_future() };
-
-    get_fiber_pool().post(std::move(pt), std::forward< Args >(args) ...);
-
-    return f;
-}
-
 } // fiber_pool
 
-//! 在名称空间外访问
+/*!
+ *  在名称空间外访问
+ */
 using fiber_pool::get_fiber_pool;
 
 #endif // fiber_pool_h__

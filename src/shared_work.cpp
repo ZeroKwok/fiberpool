@@ -28,11 +28,16 @@ namespace fiber_pool {
         }
         else
         {
-            ctx->detach();
-            std::unique_lock< std::mutex > lk{ rqueue_mtx_ }; /*<
-                    worker fiber, enqueue on shared queue
-                >*/
-            rqueue_.push_back(ctx);
+            if(props.binding())
+                pqueue_.push_back(*ctx);
+            else
+            {
+                ctx->detach();
+                std::unique_lock< std::mutex > lk{ rqueue_mtx_ }; /*<
+                        worker fiber, enqueue on shared queue
+                    >*/
+                rqueue_.push_back(ctx);
+            }
         }
     }
 
@@ -64,26 +69,34 @@ namespace fiber_pool {
     boost::fibers::context* shared_work_with_properties::pick_next() noexcept
     {
         boost::fibers::context* ctx = nullptr;
-        std::unique_lock< std::mutex > lk{ rqueue_mtx_ };
-        if (!rqueue_.empty()) { /*<
-                pop an item from the ready queue
-            >*/
-            ctx = rqueue_.front();
-            rqueue_.pop_front();
-            lk.unlock();
-            BOOST_ASSERT(nullptr != ctx);
-            boost::fibers::context::active()->attach(ctx); /*<
-                attach context to current scheduler via the active fiber
-                of this thread
-            >*/
+        if(!pqueue_.empty())
+        {
+            ctx = &pqueue_.front();
+            pqueue_.pop_front();
         }
-        else {
-            lk.unlock();
-            if (!lqueue_.empty()) { /*<
-                    nothing in the ready queue, return main or dispatcher fiber
+        else
+        {
+            std::unique_lock< std::mutex > lk{ rqueue_mtx_ };
+            if (!rqueue_.empty()) { /*<
+                    pop an item from the ready queue
                 >*/
-                ctx = &lqueue_.front();
-                lqueue_.pop_front();
+                ctx = rqueue_.front();
+                rqueue_.pop_front();
+                lk.unlock();
+                BOOST_ASSERT(nullptr != ctx);
+                boost::fibers::context::active()->attach(ctx); /*<
+                    attach context to current scheduler via the active fiber
+                    of this thread
+                >*/
+            }
+            else {
+                lk.unlock();
+                if (!lqueue_.empty()) { /*<
+                        nothing in the ready queue, return main or dispatcher fiber
+                    >*/
+                    ctx = &lqueue_.front();
+                    lqueue_.pop_front();
+                }
             }
         }
         return ctx;
@@ -92,7 +105,7 @@ namespace fiber_pool {
     bool shared_work_with_properties::has_ready_fibers() const noexcept
     {
         std::unique_lock< std::mutex > lock{ rqueue_mtx_ };
-        return !rqueue_.empty() || !lqueue_.empty();
+        return !pqueue_.empty() || !rqueue_.empty() || !lqueue_.empty();
     }
 
     void shared_work_with_properties::suspend_until(
