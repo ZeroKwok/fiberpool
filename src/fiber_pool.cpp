@@ -22,6 +22,9 @@ FIBER_POOL_DECL void boost::this_fiber::bind_thread()
 {
     boost::this_fiber::properties<
         fiber_pool::fiber_properties>().bind();
+
+    if (fiber_pool::shared_work_global_config_single::get_const_instance().is_main_thread())
+        throw std::runtime_error("The fibers cannot be bind to the main thread");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -115,13 +118,17 @@ pool::pool(size_t threads /*= -1*/)
             boost::fibers::use_scheduling_algorithm<
                 shared_work_with_properties>(true);
 
-            // 挂起主线程
+            // 将线程挂起, 内部会将执行绪交给调度器
             boost::unique_lock<boost::mutex> lock(m_mutex_stop);
             m_condition_stop.wait(lock, [this]() {
                 return m_pool_state.load() > running;
             });
         });
     }
+
+    // 视实例化自己的为主线程
+    shared_work_global_config_single::get_mutable_instance()
+        .set_main_thread(boost::this_thread::get_id());
 
     // 表示池的状态
     m_pool_state.store(running);
@@ -153,8 +160,7 @@ fiber pool::dispatch(pool::runnable_ptr&& runnable)
     {
         has_not_init_alorithm.store(false);
 
-        boost::fibers::use_scheduling_algorithm<
-            shared_work_with_properties>(true);
+        boost::fibers::use_scheduling_algorithm<shared_work_with_properties>(true);
     }
 
     // 启动

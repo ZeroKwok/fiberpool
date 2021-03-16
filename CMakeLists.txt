@@ -19,6 +19,7 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
+# FindBoost.cmake
 set(Boost_USE_STATIC_LIBS ON)
 add_compile_definitions(BOOST_LIB_DIAGNOSTIC=1)
 
@@ -44,11 +45,12 @@ target_include_directories(${PROJECT_NAME}  PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>)
 
-if(UNIX)
+
+#if(UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         Boost::fiber 
         Boost::thread)
-endif()
+#endif()
 
 file(GLOB INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${INCLUDE_FILES}")

@@ -10,9 +10,35 @@
 
 namespace fiber_pool {
 
-    shared_work_with_properties::shared_work_with_properties(bool suspend)
+    void shared_work_global_config::notify_one()
+    {
+        std::unique_lock< std::mutex > lk{ mutex_ };
+        if (algos_.size() > 1)
+            (*algos_.begin())->notify();
+    }
+
+    void shared_work_global_config::notify_all()
+    {
+        std::unique_lock< std::mutex > lk{ mutex_ };
+        if (algos_.size() > 1)
+        {
+            for (auto& a : algos_)
+                a->notify();
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+
+    shared_work_with_properties::shared_work_with_properties(bool suspend/* = true*/)
         : suspend_{ suspend }
     {
+        global_config_.add_instance(this);
+    }
+
+    shared_work_with_properties::~shared_work_with_properties()
+    {
+        if (!shared_work_global_config_single::is_destroyed())
+            global_config_.remove_instance(this);
     }
 
     void shared_work_with_properties::awakened(
@@ -29,7 +55,12 @@ namespace fiber_pool {
         else
         {
             if(props.binding())
+            {
+                // 不能绑定到主线程
+                BOOST_ASSERT(!global_config_.is_main_thread());
+
                 pqueue_.push_back(*ctx);
+            }
             else
             {
                 ctx->detach();
@@ -69,43 +100,65 @@ namespace fiber_pool {
     boost::fibers::context* shared_work_with_properties::pick_next() noexcept
     {
         boost::fibers::context* ctx = nullptr;
-        if(!pqueue_.empty())
+        do
         {
-            ctx = &pqueue_.front();
-            pqueue_.pop_front();
-        }
-        else
-        {
-            std::unique_lock< std::mutex > lk{ rqueue_mtx_ };
-            if (!rqueue_.empty()) { /*<
-                    pop an item from the ready queue
-                >*/
-                ctx = rqueue_.front();
-                rqueue_.pop_front();
-                lk.unlock();
-                BOOST_ASSERT(nullptr != ctx);
-                boost::fibers::context::active()->attach(ctx); /*<
-                    attach context to current scheduler via the active fiber
-                    of this thread
-                >*/
+            if (global_config_.is_main_thread())
+            {
+                // 若是主线程被调度, 则通知其他工作线程来处理
+                global_config_.notify_all();
             }
-            else {
-                lk.unlock();
-                if (!lqueue_.empty()) { /*<
-                        nothing in the ready queue, return main or dispatcher fiber
-                    >*/
-                    ctx = &lqueue_.front();
-                    lqueue_.pop_front();
+            else
+            {
+                if (!pqueue_.empty())
+                {
+                    ctx = &pqueue_.front();
+                    pqueue_.pop_front();
+                    break;
+                }
+                else
+                {
+                    std::unique_lock< std::mutex > lk{ rqueue_mtx_ };
+                    if (!rqueue_.empty())
+                    { /*<
+                            pop an item from the ready queue
+                        >*/
+                        ctx = rqueue_.front();
+                        rqueue_.pop_front();
+                        lk.unlock();
+                        BOOST_ASSERT(nullptr != ctx);
+                        boost::fibers::context::active()->attach(ctx);
+                        /*<
+                            attach context to current scheduler via the active fiber
+                            of this thread
+                        >*/
+
+                        break;
+                    }
                 }
             }
+
+            if (!lqueue_.empty()) 
+            { /*<
+                    nothing in the ready queue, return main or dispatcher fiber
+                >*/
+                ctx = &lqueue_.front();
+                lqueue_.pop_front();
+            }
         }
+        while (0);
+
         return ctx;
     }
 
     bool shared_work_with_properties::has_ready_fibers() const noexcept
     {
-        std::unique_lock< std::mutex > lock{ rqueue_mtx_ };
-        return !pqueue_.empty() || !rqueue_.empty() || !lqueue_.empty();
+        if (global_config_.is_main_thread())
+            return !lqueue_.empty();
+        else
+        {
+            std::unique_lock< std::mutex > lock{ rqueue_mtx_ };
+            return !pqueue_.empty() || !rqueue_.empty() || !lqueue_.empty();
+        }
     }
 
     void shared_work_with_properties::suspend_until(

@@ -53,8 +53,8 @@ namespace boost {
         FIBER_POOL_DECL bool interrupted();
 
         /*!
-         *  绑定当前纤程到当前线程并提高其优先级
-         *  绑定后纤程不会在线程间切换
+         *  绑定当前纤程到当前线程
+         *  fiber_pool承诺绑定后纤程不会在线程间切换
          */
         FIBER_POOL_DECL void bind_thread();
 
@@ -88,10 +88,10 @@ public:
     fiber & operator=(fiber&& right);
 
     id   get_id() const noexcept;
-    bool finshed() const noexcept;
-    bool joinable() const noexcept;
-    void join();
-    void interrupt();
+    bool finshed() const noexcept;      //!< 判断是否执行完成(执行完成或已经被中断)
+    bool joinable() const noexcept;     //!< 类似于thread::joinable()(执行中或执行完成)
+    void join();                        //!< 等待执行完成或者中断.
+    void interrupt();                   //!< 请求中断该纤程, 参见 interrupted().
 
 protected:
     base_type m_base;
@@ -283,6 +283,8 @@ protected:
 /*!
  *  @brief 返回fiber_pool::pool的唯一实例.
  *  @param threads 参见pool();
+ *  @note  fiber_pool视第一次get_fiber_pool()的调用线程为"主线程", 
+ *         fiber_pool承诺fiber绝不会在"主线程"中执行.
  */
 FIBER_POOL_DECL fiber_pool::pool& get_fiber_pool(size_t threads = -1);
 
