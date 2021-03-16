@@ -19,16 +19,23 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
+set(CMAKE_DEBUG_POSTFIX "d")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(internal_util)
+include(library_regular_naming)
+
 # FindBoost.cmake
 set(Boost_USE_STATIC_LIBS ON)
 add_compile_definitions(BOOST_LIB_DIAGNOSTIC=1)
+
+set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 find_package(Boost REQUIRED fiber thread)
 
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
-set(CMAKE_DEBUG_POSTFIX "d")
 set(SOURCE_FILES src/fiber_pool.cpp src/shared_work.cpp)
 
 if(FIBERPOOL_BUILD_SHARED_LIBRARY)
@@ -41,16 +48,17 @@ else()
     add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
 endif()
 
+library_regular_naming(${PROJECT_NAME})
+
 target_include_directories(${PROJECT_NAME}  PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>)
-
-
-#if(UNIX)
+	
+if(UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE 
         Boost::fiber 
         Boost::thread)
-#endif()
+endif()
 
 file(GLOB INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${INCLUDE_FILES}")
@@ -61,6 +69,8 @@ install(TARGETS ${PROJECT_NAME}
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib 
     PUBLIC_HEADER DESTINATION include)
+	
+install_pdb(${PROJECT_NAME})
 
 if (FIBERPOOL_BUILD_EXAMPLE)
     add_subdirectory(example)

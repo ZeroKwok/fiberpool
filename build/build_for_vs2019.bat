@@ -1,5 +1,5 @@
 @echo off
-set ProjectName=fiberpool
+set ProjectName=fiber_pool
 set ProjectVersion=0.1.1
 set ProjectGenerator32Bit="Visual Studio 16 2019" -A Win32
 set ProjectGenerator64Bit="Visual Studio 16 2019" -A x64

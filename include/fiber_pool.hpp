@@ -6,6 +6,9 @@
  * 
  *  @author zero kwok
  *  @date   2020-10
+ *
+ *  @note   2021-03 已知bug, 在fiber_pool中使用boost::fibers::promise时可能导致等待线程中卡主, 请用std::promise代替.
+ *
  */
 
 #if defined(FIBERPOOL_BUILD_SHARED_LIB)                 //!< build shared lib
