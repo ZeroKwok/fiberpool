@@ -78,26 +78,23 @@ namespace fiber_pool {
 class FIBER_POOL_DECL fiber
 {
 public:
-    typedef boost::fibers::fiber base_type;
-    typedef base_type::id id;
+    typedef boost::fibers::fiber::id id;
 
     fiber();
-    fiber(fiber& right);
-    fiber(fiber&& right);
-    fiber(base_type&& fiber);
-    ~fiber();
+    fiber(const fiber& right);
+    fiber(boost::fibers::fiber&& fiber);
 
-    fiber & operator=(fiber& right);
-    fiber & operator=(fiber&& right);
+    fiber & operator=(const fiber& right);
 
     id   get_id() const noexcept;
     bool finshed() const noexcept;      //!< 判断是否执行完成(执行完成或已经被中断)
     bool joinable() const noexcept;     //!< 类似于thread::joinable()(执行中或执行完成)
     void join();                        //!< 等待执行完成或者中断.
     void interrupt();                   //!< 请求中断该纤程, 参见 interrupted().
+    void interrupt_on_destruct();       //!< 析构时请求中断
 
 protected:
-    base_type m_base;
+    std::shared_ptr<struct fiber_private> m_private;
 };
 
 /*!

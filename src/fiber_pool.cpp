@@ -42,63 +42,84 @@ boost::atomic_size_t fiber_pool::pool::abstract_runnable::count_{ 0 };
 
 namespace fiber_pool {
 
+struct fiber_private
+{
+    bool interrupt_destruct_{false};
+    boost::fibers::fiber fiber_;
+
+    fiber_private() {}
+
+    ~fiber_private()
+    {
+        if (interrupt_destruct_)
+            fiber_.properties<fiber_properties>().interrupt();
+
+        fiber_.detach();
+    }
+};
+
 fiber::fiber()
 {}
 
-fiber::fiber(fiber& right)
-    : m_base(std::move(right.m_base))
+fiber::fiber(const fiber& right)
+    : m_private(right.m_private)
 {}
 
-fiber::fiber(fiber && right)
-    : m_base(std::move(right.m_base))
-{}
-
-fiber::fiber(base_type&& fiber)
-    : m_base(std::move(fiber))
-{}
-
-fiber::~fiber()
+fiber::fiber(boost::fibers::fiber&& fiber)
+    : m_private(std::make_shared<fiber_private>())
 {
-    if (m_base.joinable())
-        m_base.detach();
+    m_private->fiber_.swap(fiber);
 }
 
-fiber& fiber::operator=(fiber& right)
+fiber& fiber::operator=(const fiber& right)
 {
-    m_base = std::move(right.m_base);
-    return *this;
-}
-
-fiber& fiber::operator=(fiber&& right)
-{
-    m_base = std::move(right.m_base);
+    m_private = right.m_private;
     return *this;
 }
 
 fiber::id fiber::get_id() const noexcept
 {
-    return m_base.get_id();
+    if (m_private)
+        return m_private->fiber_.get_id();
+
+    return fiber::id();
 }
 
 bool fiber::finshed() const noexcept
 {
-    return const_cast<fiber*>(this)->
-        m_base.properties<fiber_properties>().finished();
+    if (m_private)
+    {
+        return const_cast<fiber*>(this)->
+            m_private->fiber_.properties<fiber_properties>().finished();
+    }
+
+    return true;
 }
 
 bool fiber::joinable() const noexcept
 {
-    return m_base.joinable();
+    if (m_private)
+        return m_private->fiber_.joinable();
+
+    return false;
 }
 
 void fiber::join()
 {
-    return m_base.join();
+    if (m_private)
+        m_private->fiber_.join();
 }
 
 void fiber::interrupt()
 {
-    m_base.properties<fiber_properties>().interrupt();
+    if (m_private)
+        m_private->fiber_.properties<fiber_properties>().interrupt();
+}
+
+void fiber::interrupt_on_destruct()
+{
+    if (m_private)
+        m_private->interrupt_destruct_ = true;
 }
 
 //////////////////////////////////////////////////////////////////////////
