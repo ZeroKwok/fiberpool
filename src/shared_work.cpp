@@ -64,10 +64,14 @@ namespace fiber_pool {
             else
             {
                 ctx->detach();
-                std::unique_lock< std::mutex > lk{ rqueue_mtx_ }; /*<
+                std::unique_lock< std::mutex > lk{ rqueue_mtx_ }; 
+                /*<
                         worker fiber, enqueue on shared queue
                     >*/
                 rqueue_.push_back(ctx);
+
+
+                global_config_.notify_all();
             }
         }
     }

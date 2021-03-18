@@ -29,14 +29,29 @@ FIBER_POOL_DECL void boost::this_fiber::bind_thread()
 
 //////////////////////////////////////////////////////////////////////////
 
+// pool::abstract_runnable
+static boost::atomic_size_t __abstract_runnable_count{ 0 };
+
+size_t fiber_pool::pool::abstract_runnable::count()
+{
+    return __abstract_runnable_count;
+}
+
+void fiber_pool::pool::abstract_runnable::increment()
+{
+    ++__abstract_runnable_count;
+}
+
+void fiber_pool::pool::abstract_runnable::decrement()
+{
+    --__abstract_runnable_count;
+}
+
 void fiber_pool::pool::abstract_runnable::finish()
 {
     boost::this_fiber::properties<
         fiber_pool::fiber_properties>().finish();
 }
-
-// pool::abstract_runnable
-boost::atomic_size_t fiber_pool::pool::abstract_runnable::count_{ 0 };
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -126,6 +141,13 @@ void fiber::interrupt_on_destruct()
 
 pool::pool(size_t threads /*= -1*/)
 {
+    // 视实例化自己的为主线程
+    shared_work_global_config_single::get_mutable_instance()
+        .set_main_thread(boost::this_thread::get_id());
+
+    // 表示池的状态
+    m_pool_state.store(running);
+
     // 默认使用逻辑处理器的2倍
     if (threads == -1)
         threads = std::max(boost::thread::hardware_concurrency(), 2u) * 2u;
@@ -146,13 +168,6 @@ pool::pool(size_t threads /*= -1*/)
             });
         });
     }
-
-    // 视实例化自己的为主线程
-    shared_work_global_config_single::get_mutable_instance()
-        .set_main_thread(boost::this_thread::get_id());
-
-    // 表示池的状态
-    m_pool_state.store(running);
 }
 
 pool::~pool()
@@ -191,7 +206,7 @@ fiber pool::dispatch(pool::runnable_ptr&& runnable)
 
 size_t fiber_pool::pool::fiber_count() const noexcept
 {
-    return abstract_runnable::count_.load();
+    return abstract_runnable::count();
 }
 
 void pool::shutdown(bool wait/* = false*/) noexcept

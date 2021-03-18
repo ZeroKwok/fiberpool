@@ -6,7 +6,7 @@ project(fiber_pool VERSION 0.1.1.0)
 set(CMAKE_CXX_STANDARD 17)
 
 option(FIBERPOOL_BUILD_EXAMPLE          "Whether to build example"            ON)
-option(FIBERPOOL_BUILD_SHARED_LIBRARY   "Whether to build a shared library"   OFF)
+option(FIBERPOOL_BUILD_SHARED_LIBRARY   "Whether to build a shared library"   ON)
 option(FIBERPOOL_ENABLE_STATIC_RUNTIME  "Enable link with runtime statically" OFF)
 
 if(MSVC AND FIBERPOOL_ENABLE_STATIC_RUNTIME)
@@ -19,7 +19,10 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
-set(CMAKE_DEBUG_POSTFIX "d")
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/lib")
+#set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/lib")
+#set(CMAKE_DEBUG_POSTFIX "d")
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(internal_util)
@@ -68,6 +71,7 @@ install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib 
+    RUNTIME DESTINATION bin
     PUBLIC_HEADER DESTINATION include)
 	
 install_pdb(${PROJECT_NAME})

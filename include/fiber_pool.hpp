@@ -35,7 +35,7 @@
 #endif
 
 #ifndef BOOST_CONTEXT_DYN_LINK
-#   define BOOST_CONTEXT_DYN_LINK 1
+#    define BOOST_CONTEXT_DYN_LINK 1
 #endif
 
 #include <boost/any.hpp>
@@ -111,13 +111,15 @@ class FIBER_POOL_DECL pool
     /*!
      *  可运行对象的抽象
      */
-    struct abstract_runnable
+    class FIBER_POOL_DECL abstract_runnable
     {
-        static boost::atomic_size_t count_; //!< 对象计数器
-
+    public:
         virtual ~abstract_runnable() {}
         virtual void operator()() = 0;
+                void increment();
+                void decrement();
                 void finish();
+        static size_t count();
     };
 
     typedef std::unique_ptr<abstract_runnable> runnable_ptr;
@@ -143,13 +145,13 @@ class FIBER_POOL_DECL pool
             , arg_(std::forward< Arg >(arg) ...)
             , inited_(true)
         {
-            ++count_;
+            increment();
         }
 
         ~closure()
         {
             if (inited_)
-                --count_;
+                decrement();
         }
 
         void operator()()
@@ -188,7 +190,7 @@ class FIBER_POOL_DECL pool
     /*!
      *  非成员函数, 用于实例化pool对象
      */
-    friend pool& get_fiber_pool(size_t threads);
+    friend FIBER_POOL_DECL pool& get_fiber_pool(size_t threads);
 
 public:
     ~pool();
