@@ -139,14 +139,26 @@ void fiber::interrupt_on_destruct()
 
 //////////////////////////////////////////////////////////////////////////
 
+struct pool_private
+{
+    boost::atomic_int                     pool_state{ pool::stoped };
+    boost::mutex                          mutex_stop;
+    boost::fibers::condition_variable_any condition_stop;
+    std::vector<boost::thread>            threads;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 pool::pool(size_t threads /*= -1*/)
 {
+    FIBER_POOL_INIT_PRIVATE(pool);
+
     // 视实例化自己的为主线程
     shared_work_global_config_single::get_mutable_instance()
         .set_main_thread(boost::this_thread::get_id());
 
     // 表示池的状态
-    m_pool_state.store(running);
+    FIBER_POOL_PRIVATE(pool).pool_state.store(running);
 
     // 默认使用逻辑处理器的2倍
     if (threads == -1)
@@ -155,16 +167,16 @@ pool::pool(size_t threads /*= -1*/)
     // 启动工作线程
     for (size_t i = 0; i < threads; ++i)
     {
-        m_threads.emplace_back([this]()
+        FIBER_POOL_PRIVATE(pool).threads.emplace_back([this]()
         {
             // 初始化调度算法
             boost::fibers::use_scheduling_algorithm<
                 shared_work_with_properties>(true);
 
             // 将线程挂起, 内部会将执行绪交给调度器
-            boost::unique_lock<boost::mutex> lock(m_mutex_stop);
-            m_condition_stop.wait(lock, [this]() {
-                return m_pool_state.load() > running;
+            boost::unique_lock<boost::mutex> lock(FIBER_POOL_PRIVATE(pool).mutex_stop);
+            FIBER_POOL_PRIVATE(pool).condition_stop.wait(lock, [this]() {
+                return FIBER_POOL_PRIVATE(pool).pool_state.load() > running;
             });
         });
     }
@@ -176,15 +188,17 @@ pool::~pool()
     {
 #if BOOST_OS_WINDOWS
         ::OutputDebugStringA("*** Warnings ***\r\n");
-        ::OutputDebugStringA("shutdown() must be called before ~pool::().\r\n");
+        ::OutputDebugStringA("The pool::shutdown() was not called before ~pool::pool() to clean up the resource.\r\n");
 #endif
-        std::terminate();
+        shutdown(false);
     }
+
+    FIBER_POOL_FREE_PRIVATE(pool);
 }
 
 pool::state_t pool::state() const noexcept
 {
-    return static_cast<state_t>(m_pool_state.load());
+    return static_cast<state_t>(FIBER_POOL_PRIVATE(pool).pool_state.load());
 }
 
 fiber pool::dispatch(pool::runnable_ptr&& runnable)
@@ -213,12 +227,12 @@ void pool::shutdown(bool wait/* = false*/) noexcept
 {
     // 唤醒退出工作线程
     {
-        boost::unique_lock<boost::mutex> lock(m_mutex_stop);
-        m_pool_state.store(wait ? waiting : cleaning);
-        m_condition_stop.notify_all();
+        boost::unique_lock<boost::mutex> lock(FIBER_POOL_PRIVATE(pool).mutex_stop);
+        FIBER_POOL_PRIVATE(pool).pool_state.store(wait ? waiting : cleaning);
+        FIBER_POOL_PRIVATE(pool).condition_stop.notify_all();
     }
 
-    for (auto& thread : m_threads)
+    for (auto& thread : FIBER_POOL_PRIVATE(pool).threads)
     {
         if (thread.joinable())
         {
@@ -226,15 +240,15 @@ void pool::shutdown(bool wait/* = false*/) noexcept
             {
                 if (fiber_count() == 0)
                 {
-                    boost::unique_lock<boost::mutex> lock(m_mutex_stop);
-                    m_pool_state.store(cleaning);
-                    m_condition_stop.notify_all();
+                    boost::unique_lock<boost::mutex> lock(FIBER_POOL_PRIVATE(pool).mutex_stop);
+                    FIBER_POOL_PRIVATE(pool).pool_state.store(cleaning);
+                    FIBER_POOL_PRIVATE(pool).condition_stop.notify_all();
                 }
             }
         }
     }
 
-    m_pool_state.store(stoped);
+    FIBER_POOL_PRIVATE(pool).pool_state.store(stoped);
 }
 
 fiber_pool::pool& get_fiber_pool(size_t threads/* = -1*/)

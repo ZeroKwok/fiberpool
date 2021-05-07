@@ -19,6 +19,26 @@
 #   define FIBER_POOL_DECL                              //!< using or build static lib
 #endif
 
+ // Defined Private encapsulation implement
+#define FIBER_POOL_DECL_PRIVATE(type) \
+    intptr_t __##type##_private
+
+#define FIBER_POOL_INIT_PRIVATE(type, ...) \
+    __##type##_private = reinterpret_cast<intptr_t>( \
+        new type##_private(__VA_ARGS__)); 
+
+#define FIBER_POOL_FREE_PRIVATE(type) \
+    do { \
+        if(__##type##_private != 0) { \
+            delete reinterpret_cast< \
+                type##_private *>(__##type##_private); \
+            __##type##_private = 0; \
+        } \
+    } while(0)
+
+#define FIBER_POOL_PRIVATE(type) \
+    (*reinterpret_cast<type##_private *>(__##type##_private))
+
 #if defined(WIN32) || defined(_WIN32)
 #   ifndef WIN32_LEAN_AND_MEAN
 #      define  WIN32_LEAN_AND_MEAN 
@@ -94,7 +114,14 @@ public:
     void interrupt_on_destruct();       //!< 析构时请求中断
 
 protected:
+#if _MSC_VER
+#   pragma warning (push)
+#   pragma warning (disable:4251)
+#endif
     std::shared_ptr<struct fiber_private> m_private;
+#if _MSC_VER
+#   pragma warning (pop)
+#endif
 };
 
 /*!
@@ -103,10 +130,8 @@ protected:
  */
 class FIBER_POOL_DECL pool
 {
-    boost::atomic_int                     m_pool_state{ stoped };
-    boost::mutex                          m_mutex_stop;
-    boost::fibers::condition_variable_any m_condition_stop;
-    std::vector<boost::thread>            m_threads;
+private:
+    FIBER_POOL_DECL_PRIVATE(pool);
 
     /*!
      *  可运行对象的抽象
