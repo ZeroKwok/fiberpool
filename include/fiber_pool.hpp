@@ -241,8 +241,12 @@ public:
      *  @see   pool::async().
      */
     template<typename Fn, typename ... Arg>
-    fiber post(Fn&& fn, Arg&& ... arg)
+    fiber post(Fn&& fn, Arg ... arg)
     {
+        // 这里参数不能为: Arg&& ... arg. 这可能导致传递引用类型到closure(), 
+        // 从而让其保存了参数的应用而不是拷贝, 在未来使用时即发生未定义行为.
+        // GuoJH By 2021-5-24
+
         if (state() != running)
             throw std::runtime_error("The task cannot be delivered at this time.");
 
