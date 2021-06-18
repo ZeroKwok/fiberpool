@@ -297,7 +297,7 @@ public:
      *  @note  在等待过程中池的状态将设置为waiting, 而另一种状态是cleaning, 这两种状态均不允许通过dispatch()分派任务,
      *         将抛出std::runtime_error()异常, 返回后池的状态将被设置为stoped.
      */
-    void shutdown(bool wait = true) noexcept;
+    void shutdown(bool wait = false) noexcept;
 
 protected:
 

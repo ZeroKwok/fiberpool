@@ -178,6 +178,10 @@ pool::pool(size_t threads /*= -1*/)
             FIBER_POOL_PRIVATE(pool).condition_stop.wait(lock, [this]() {
                 return FIBER_POOL_PRIVATE(pool).pool_state.load() > running;
             });
+
+#if BOOST_OS_WINDOWS
+            ::OutputDebugStringA("The worker thread exit!\r\n");
+#endif
         });
     }
 }
@@ -229,7 +233,12 @@ void pool::shutdown(bool wait/* = false*/) noexcept
     {
         boost::unique_lock<boost::mutex> lock(FIBER_POOL_PRIVATE(pool).mutex_stop);
         FIBER_POOL_PRIVATE(pool).pool_state.store(wait ? waiting : cleaning);
-        FIBER_POOL_PRIVATE(pool).condition_stop.notify_all();
+
+        // 这里需要判断一下, 因为active是静态对象, pool也是静态对象, 故当active先析构时将会出现问题.
+        // GuoJH by 2021-5-21 17:00:09 
+
+        if (boost::fibers::context::active() != nullptr)
+            FIBER_POOL_PRIVATE(pool).condition_stop.notify_all();
     }
 
     for (auto& thread : FIBER_POOL_PRIVATE(pool).threads)
@@ -242,7 +251,9 @@ void pool::shutdown(bool wait/* = false*/) noexcept
                 {
                     boost::unique_lock<boost::mutex> lock(FIBER_POOL_PRIVATE(pool).mutex_stop);
                     FIBER_POOL_PRIVATE(pool).pool_state.store(cleaning);
-                    FIBER_POOL_PRIVATE(pool).condition_stop.notify_all();
+
+                    if (boost::fibers::context::active() != nullptr)
+                        FIBER_POOL_PRIVATE(pool).condition_stop.notify_all();
                 }
             }
         }
