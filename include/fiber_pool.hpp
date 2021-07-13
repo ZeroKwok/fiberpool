@@ -1,15 +1,11 @@
+// This file is part of the fiber_pool library
+//
+// Copyright (c) 2018-2022, zero.kwok@foxmail.com 
+// For the full copyright and license information, please view the LICENSE
+// file that was distributed with this source code.
+
 #ifndef fiber_pool_h__
 #define fiber_pool_h__
-
-/*!
- *  @file   fiber_pool.hpp
- * 
- *  @author zero kwok
- *  @date   2020-10
- *
- *  @note   2021-03 已知bug, 在fiber_pool中使用boost::fibers::promise时可能导致等待线程中卡主, 请用std::promise代替.
- *
- */
 
 #if defined(FIBERPOOL_BUILD_SHARED_LIB)                 //!< build shared lib
 #   define FIBER_POOL_DECL __declspec(dllexport)
@@ -245,7 +241,7 @@ public:
     {
         // 这里参数不能为: Arg&& ... arg. 这可能导致传递引用类型到closure(), 
         // 从而让其保存了参数的应用而不是拷贝, 在未来使用时即发生未定义行为.
-        // GuoJH By 2021-5-24
+        // 2021-5-24
 
         if (state() != running)
             throw std::runtime_error("The task cannot be delivered at this time.");

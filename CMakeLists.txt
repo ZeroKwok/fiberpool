@@ -1,3 +1,9 @@
+# This file is part of the fiber_pool library
+#
+# Copyright (c) 2018-2022, zero.kwok@foxmail.com 
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code.
+
 cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0074 NEW)
 

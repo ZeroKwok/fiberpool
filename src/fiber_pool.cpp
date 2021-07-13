@@ -1,13 +1,11 @@
+// This file is part of the fiber_pool library
+//
+// Copyright (c) 2018-2022, zero.kwok@foxmail.com 
+// For the full copyright and license information, please view the LICENSE
+// file that was distributed with this source code.
+
 #include "fiber_pool.hpp"
 #include "shared_work.hpp"
-
-/*!
- *  @file   fiber_pool.cpp
- *
- *  @author zero kwok
- *  @date   2020-10
- *
- */
 
 bool boost::this_fiber::interrupted()
 {
@@ -69,7 +67,8 @@ struct fiber_private
         if (interrupt_destruct_)
             fiber_.properties<fiber_properties>().interrupt();
 
-        fiber_.detach();
+        if (fiber_.joinable())
+            fiber_.detach();
     }
 };
 
@@ -149,6 +148,49 @@ struct pool_private
 
 //////////////////////////////////////////////////////////////////////////
 
+#if BOOST_OS_WINDOWS
+
+inline bool set_thread_name(const std::string& name, int thread_id = -1)
+{
+    // SEE:
+    // http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
+
+    // Related to Thread Name 
+#pragma pack(push,8)
+    typedef struct tagTHREADNAME_INFO
+    {
+        DWORD  dwType;       // Must be 0x1000.
+        LPCSTR szName;       // Pointer to name (in user addr space).
+        DWORD  dwThreadID;   // Thread ID (-1=caller thread).
+        DWORD  dwFlags;      // Reserved for future use, must be zero.
+    } THREADNAME_INFO;
+#pragma pack(pop)
+
+    THREADNAME_INFO info;
+    info.dwType = 0x1000;
+    info.szName = name.c_str();
+    info.dwThreadID = thread_id;
+    info.dwFlags = 0;
+
+    __try
+    {
+        ::RaiseException(
+            0x406D1388,                     // Set a Thread Name in Native Code
+            0,
+            sizeof(info) / sizeof(ULONG_PTR),
+            (ULONG_PTR*)&info);
+
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+
+    return false;
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 pool::pool(size_t threads /*= -1*/)
 {
     FIBER_POOL_INIT_PRIVATE(pool);
@@ -167,8 +209,12 @@ pool::pool(size_t threads /*= -1*/)
     // 启动工作线程
     for (size_t i = 0; i < threads; ++i)
     {
-        FIBER_POOL_PRIVATE(pool).threads.emplace_back([this]()
+        FIBER_POOL_PRIVATE(pool).threads.emplace_back([this, i]()
         {
+#if BOOST_OS_WINDOWS
+                set_thread_name("fiberpool - " + std::to_string(i));
+#endif
+
             // 初始化调度算法
             boost::fibers::use_scheduling_algorithm<
                 shared_work_with_properties>(true);

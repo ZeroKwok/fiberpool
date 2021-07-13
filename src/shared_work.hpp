@@ -1,13 +1,11 @@
+// This file is part of the fiber_pool library
+//
+// Copyright (c) 2018-2022, zero.kwok@foxmail.com 
+// For the full copyright and license information, please view the LICENSE
+// file that was distributed with this source code.
+
 #ifndef shared_work_h__
 #define shared_work_h__
-
-/*!
- *  @file   shared_work.hpp
- *
- *  @author zero kwok
- *  @date   2020-10
- *
- */
 
 #include <set>
 #include <deque>

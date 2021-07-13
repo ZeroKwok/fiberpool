@@ -1,12 +1,10 @@
-#include "shared_work.hpp"
+// This file is part of the fiber_pool library
+//
+// Copyright (c) 2018-2022, zero.kwok@foxmail.com 
+// For the full copyright and license information, please view the LICENSE
+// file that was distributed with this source code.
 
-/*!
- *  @file   shared_work.cpp 
- *
- *  @author zero kwok
- *  @date   2020-10
- *
- */
+#include "shared_work.hpp"
 
 namespace fiber_pool {
 
